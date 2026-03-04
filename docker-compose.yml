@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: cold_email_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:///./cold_email.db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: changethis
+      FERNET_KEY: jmLjPF1VIC2tL7voy7lFM4iYsbRT7zuPEIDXVRFGgj8=
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+
+  worker:
+    build: ./backend
+    container_name: cold_email_worker
+    command: celery -A app.celery_app worker -B --loglevel=info
+    environment:
+      DATABASE_URL: sqlite:///./cold_email.db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: changethis
+      FERNET_KEY: jmLjPF1VIC2tL7voy7lFM4iYsbRT7zuPEIDXVRFGgj8=
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - backend
+
+  frontend:
+    build: ./frontend
+    container_name: cold_email_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:alpine
+    container_name: cold_email_redis
+    ports:
+      - "6379:6379"
