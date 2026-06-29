@@ -50,6 +50,24 @@ def delete_account(account_id: int, session: Session = Depends(get_session)):
     account = session.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    session.delete(account)
-    session.commit()
+    
+    try:
+        from app.models import Client, EmailLog
+        # Unlink clients
+        clients = session.exec(select(Client).where(Client.sent_via_account_id == account_id)).all()
+        for client in clients:
+            client.sent_via_account_id = None
+            session.add(client)
+            
+        # Delete related email logs
+        logs = session.exec(select(EmailLog).where(EmailLog.account_id == account_id)).all()
+        for log in logs:
+            session.delete(log)
+            
+        session.delete(account)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+        
     return {"ok": True}
