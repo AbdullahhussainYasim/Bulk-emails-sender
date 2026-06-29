@@ -6,7 +6,7 @@ from app.services.security import encrypt_password
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
-@router.post("/", response_model=Account)
+@router.post("", response_model=Account)
 def create_account(account: Account, session: Session = Depends(get_session)):
     account.encrypted_app_password = encrypt_password(account.encrypted_app_password)
     session.add(account)
@@ -14,7 +14,7 @@ def create_account(account: Account, session: Session = Depends(get_session)):
     session.refresh(account)
     return account
 
-@router.get("/", response_model=list[Account])
+@router.get("", response_model=list[Account])
 def read_accounts(session: Session = Depends(get_session)):
     accounts = session.exec(select(Account)).all()
     # Ensure we don't return the real password (even encrypted, it's safe, but better API practice to mask? 
