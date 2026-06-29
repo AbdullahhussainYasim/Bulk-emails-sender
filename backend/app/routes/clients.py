@@ -34,7 +34,7 @@ async def upload_clients(file: UploadFile = File(...), session: Session = Depend
     session.commit()
     return {"message": f"Successfully added {count} clients"}
 
-@router.get("/", response_model=List[Client])
+@router.get("", response_model=List[Client])
 def read_clients(
     status: str = None, 
     offset: int = 0, 

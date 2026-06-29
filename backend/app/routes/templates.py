@@ -5,7 +5,7 @@ from app.models import EmailTemplate
 
 router = APIRouter(prefix="/template", tags=["template"])
 
-@router.post("/", response_model=EmailTemplate)
+@router.post("", response_model=EmailTemplate)
 def create_template(template: EmailTemplate, session: Session = Depends(get_session)):
     count = session.exec(select(EmailTemplate)).all()
     if len(count) == 0:
@@ -18,7 +18,7 @@ def create_template(template: EmailTemplate, session: Session = Depends(get_sess
     session.refresh(template)
     return template
 
-@router.get("/", response_model=list[EmailTemplate])
+@router.get("", response_model=list[EmailTemplate])
 def get_templates(session: Session = Depends(get_session)):
     templates = session.exec(select(EmailTemplate)).all()
     return templates

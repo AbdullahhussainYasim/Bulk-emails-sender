@@ -6,7 +6,7 @@ from typing import List
 
 router = APIRouter(prefix="/logs", tags=["logs"])
 
-@router.get("/", response_model=List[EmailLog])
+@router.get("", response_model=List[EmailLog])
 def read_logs(
     limit: int = 100, 
     offset: int = 0, 
