@@ -30,7 +30,7 @@ def on_startup():
     import os
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     try:
-        r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+        r = redis.Redis.from_url(REDIS_URL.replace("CERT_NONE", "none"), decode_responses=True)
         r.delete("sending_active")
         r.delete("sending_stopped") # Reset stop signal too
         print("Startup: Cleared sending locks.")
