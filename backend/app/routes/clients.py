@@ -64,6 +64,19 @@ def delete_client(client_id: int, session: Session = Depends(get_session)):
     client = session.get(Client, client_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
-    session.delete(client)
-    session.commit()
-    return {"ok": True}
+        
+    try:
+        from app.models import EmailLog
+        # Delete related email logs first due to foreign key constraints
+        logs = session.exec(select(EmailLog).where(EmailLog.client_id == client_id)).all()
+        for log in logs:
+            session.delete(log)
+            
+        session.commit()
+        
+        session.delete(client)
+        session.commit()
+        return {"ok": True}
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
