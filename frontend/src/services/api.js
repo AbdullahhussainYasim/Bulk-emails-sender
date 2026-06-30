@@ -6,6 +6,22 @@ const api = axios.create({
     baseURL: API_URL,
 });
 
+// Add a request interceptor to attach the JWT token
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+// Auth Endpoints
+export const login = (data) => api.post('/auth/login', data, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+});
+export const register = (data) => api.post('/auth/register', data);
+export const getMe = () => api.get('/auth/me');
+
 export const getStats = () => api.get('/dashboard/stats');
 export const getAccounts = () => api.get('/accounts');
 export const addAccount = (data) => api.post('/accounts', data);
