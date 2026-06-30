@@ -66,9 +66,11 @@ def send_emails_for_account_task(self, account_id: int):
             raw_body = template_model.body
             
             # MEMORY FIX: Fetch exactly 1 pending client instead of all of them
+            # We also ensure it hasn't been locked by another account yet
             client = session.exec(
                 select(Client)
                 .where(Client.status == "pending")
+                .where(Client.sent_via_account_id == None)
                 .limit(1)
             ).first()
             
@@ -77,8 +79,8 @@ def send_emails_for_account_task(self, account_id: int):
                 redis_client.delete("sending_active")
                 return "No pending clients"
                 
-            # Immediately lock this client so parallel workers don't grab it
-            client.status = "processing"
+            # Immediately lock this client to this account so parallel workers don't grab it
+            client.sent_via_account_id = account.id
             session.add(client)
             session.commit()
             
@@ -106,9 +108,9 @@ def send_emails_for_account_task(self, account_id: int):
                 client.retry_count += 1
                 if client.retry_count < 2:
                     client.status = "pending" # Retry later
+                    client.sent_via_account_id = None # Release the lock so anyone can retry
                 logger.error(f"Failed to send to {client.email}: {error}")
                 
-            client.sent_via_account_id = account.id
             client.sent_at = datetime.utcnow()
             
             log = EmailLog(
