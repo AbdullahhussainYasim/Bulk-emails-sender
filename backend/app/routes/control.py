@@ -1,5 +1,8 @@
 from fastapi import APIRouter
-from app.tasks.email_tasks import send_bulk_emails_task
+from app.tasks.email_tasks import send_emails_for_account_task
+from sqlmodel import Session, select
+from app.database import engine
+from app.models import Account
 import redis
 import os
 
@@ -16,9 +19,17 @@ def start_sending():
 
     redis_client.set("sending_active", "true")
     redis_client.set(STOP_KEY, "false")
-    # Trigger Celery task asynchronously
-    send_bulk_emails_task.delay()
-    return {"message": "Sending started"}
+    
+    with Session(engine) as session:
+        accounts = session.exec(select(Account)).all()
+        if not accounts:
+            redis_client.delete("sending_active")
+            return {"message": "No configured email accounts found"}
+            
+        for account in accounts:
+            send_emails_for_account_task.delay(account.id)
+            
+    return {"message": f"Sending started concurrently across {len(accounts)} accounts"}
 
 @router.post("/stop")
 def stop_sending():

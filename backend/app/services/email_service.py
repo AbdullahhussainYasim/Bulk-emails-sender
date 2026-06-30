@@ -18,7 +18,7 @@ def send_email_via_smtp(account: Account, to_email: str, subject: str, body: str
 
     try:
         decrypted_password = decrypt_password(account.encrypted_app_password)
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
         server.starttls()
         server.login(account.email, decrypted_password)
         text = msg.as_string()
@@ -69,7 +69,7 @@ def send_reply_via_smtp(
 
     try:
         decrypted_password = decrypt_password(account.encrypted_app_password)
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
         server.starttls()
         server.login(account.email, decrypted_password)
         
