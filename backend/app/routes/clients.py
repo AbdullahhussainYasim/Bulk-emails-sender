@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models import Client, ClientStatus
+from app.models import Client, ClientStatus, User
+from app.routes.auth import get_current_user
 from typing import List
 import csv
 import io
@@ -9,7 +10,7 @@ import io
 router = APIRouter(prefix="/clients", tags=["clients"])
 
 @router.post("/upload")
-async def upload_clients(file: UploadFile = File(...), session: Session = Depends(get_session)):
+async def upload_clients(file: UploadFile = File(...), session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     contents = await file.read()
     decoded_content = contents.decode("utf-8")
     csv_reader = csv.DictReader(io.StringIO(decoded_content))
@@ -22,12 +23,12 @@ async def upload_clients(file: UploadFile = File(...), session: Session = Depend
         email = row.get("client_email")
         name = row.get("client_name", "")
         
-        # Check if exists
-        existing = session.exec(select(Client).where(Client.email == email)).first()
+        # Check if exists for THIS user
+        existing = session.exec(select(Client).where(Client.email == email, Client.user_id == current_user.id)).first()
         if existing:
             continue
             
-        client = Client(name=name, email=email, status=ClientStatus.PENDING)
+        client = Client(name=name, email=email, status=ClientStatus.PENDING, user_id=current_user.id)
         session.add(client)
         count += 1
     
@@ -39,17 +40,18 @@ def read_clients(
     status: str = None, 
     offset: int = 0, 
     limit: int = 100, 
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
-    query = select(Client)
+    query = select(Client).where(Client.user_id == current_user.id)
     if status:
         query = query.where(Client.status == status)
     query = query.offset(offset).limit(limit)
     return session.exec(query).all()
 
 @router.post("/{client_id}/reset")
-def reset_client(client_id: int, session: Session = Depends(get_session)):
-    client = session.get(Client, client_id)
+def reset_client(client_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    client = session.exec(select(Client).where(Client.id == client_id, Client.user_id == current_user.id)).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     client.status = ClientStatus.PENDING
@@ -60,15 +62,15 @@ def reset_client(client_id: int, session: Session = Depends(get_session)):
     return {"message": "Client reset to pending"}
 
 @router.delete("/{client_id}")
-def delete_client(client_id: int, session: Session = Depends(get_session)):
-    client = session.get(Client, client_id)
+def delete_client(client_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    client = session.exec(select(Client).where(Client.id == client_id, Client.user_id == current_user.id)).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
         
     try:
         from app.models import EmailLog
         # Delete related email logs first due to foreign key constraints
-        logs = session.exec(select(EmailLog).where(EmailLog.client_id == client_id)).all()
+        logs = session.exec(select(EmailLog).where(EmailLog.client_id == client_id, EmailLog.user_id == current_user.id)).all()
         for log in logs:
             session.delete(log)
             

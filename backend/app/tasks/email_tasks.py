@@ -27,12 +27,6 @@ def send_emails_for_account_task(self, account_id: int):
     """
     logger.info(f"Starting task for account_id: {account_id}")
     
-    # Check user stop signal
-    if redis_client.get(STOP_KEY) == "true":
-        logger.info(f"Task for account {account_id} stopped by user signal")
-        redis_client.delete("sending_active")
-        return "Stopped"
-        
     try:
         with Session(engine) as session:
             # Check Account
@@ -40,6 +34,16 @@ def send_emails_for_account_task(self, account_id: int):
             if not account:
                 logger.error(f"Account {account_id} not found")
                 return "Account not found"
+                
+            user_id = account.user_id
+            user_active_key = f"sending_active_{user_id}"
+            user_stop_key = f"sending_stopped_{user_id}"
+            
+            # Check user stop signal
+            if redis_client.get(user_stop_key) == "true":
+                logger.info(f"Task for account {account_id} stopped by user signal")
+                redis_client.delete(user_active_key)
+                return "Stopped"
                 
             # Dynamic daily limit reset check
             if account.last_reset.date() < datetime.utcnow().date():
@@ -56,10 +60,10 @@ def send_emails_for_account_task(self, account_id: int):
                 return "Limit reached"
                 
             # Fetch active template
-            template_model = session.exec(select(EmailTemplate).where(EmailTemplate.is_active == True)).first()
+            template_model = session.exec(select(EmailTemplate).where(EmailTemplate.is_active == True, EmailTemplate.user_id == user_id)).first()
             if not template_model:
                 logger.error("No active email template found")
-                redis_client.delete("sending_active")
+                redis_client.delete(user_active_key)
                 return "No template found"
                 
             raw_subject = template_model.subject
@@ -71,12 +75,13 @@ def send_emails_for_account_task(self, account_id: int):
                 select(Client)
                 .where(Client.status == "pending")
                 .where(Client.sent_via_account_id == None)
+                .where(Client.user_id == user_id)
                 .limit(1)
             ).first()
             
             if not client:
                 logger.info(f"No more pending clients for account {account.email}")
-                redis_client.delete("sending_active")
+                redis_client.delete(user_active_key)
                 return "No pending clients"
                 
             # Immediately lock this client to this account so parallel workers don't grab it
@@ -114,6 +119,7 @@ def send_emails_for_account_task(self, account_id: int):
             client.sent_at = datetime.utcnow()
             
             log = EmailLog(
+                user_id=user_id,
                 client_id=client.id,
                 account_id=account.id,
                 status="sent" if success else "failed",
@@ -137,7 +143,13 @@ def send_emails_for_account_task(self, account_id: int):
 
     except Exception as e:
         logger.error(f"Critical error in task for account {account_id}: {e}")
-        redis_client.delete("sending_active")
+        try:
+            with Session(engine) as session:
+                account = session.get(Account, account_id)
+                if account:
+                    redis_client.delete(f"sending_active_{account.user_id}")
+        except:
+            pass
         return f"Error: {e}"
 
 @celery_app.task

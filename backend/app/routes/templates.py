@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models import EmailTemplate
+from app.models import EmailTemplate, User
+from app.routes.auth import get_current_user
 
 router = APIRouter(prefix="/template", tags=["template"])
 
 @router.post("", response_model=EmailTemplate)
-def create_template(template: EmailTemplate, session: Session = Depends(get_session)):
-    count = session.exec(select(EmailTemplate)).all()
+def create_template(template: EmailTemplate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    template.user_id = current_user.id
+    count = session.exec(select(EmailTemplate).where(EmailTemplate.user_id == current_user.id)).all()
     if len(count) == 0:
         template.is_active = True # First template is active by default
     else:
@@ -19,13 +21,13 @@ def create_template(template: EmailTemplate, session: Session = Depends(get_sess
     return template
 
 @router.get("", response_model=list[EmailTemplate])
-def get_templates(session: Session = Depends(get_session)):
-    templates = session.exec(select(EmailTemplate)).all()
+def get_templates(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    templates = session.exec(select(EmailTemplate).where(EmailTemplate.user_id == current_user.id)).all()
     return templates
 
 @router.put("/{template_id}", response_model=EmailTemplate)
-def update_template(template_id: int, template: EmailTemplate, session: Session = Depends(get_session)):
-    existing = session.get(EmailTemplate, template_id)
+def update_template(template_id: int, template: EmailTemplate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    existing = session.exec(select(EmailTemplate).where(EmailTemplate.id == template_id, EmailTemplate.user_id == current_user.id)).first()
     if not existing:
         raise HTTPException(status_code=404, detail="Template not found")
         
@@ -39,8 +41,8 @@ def update_template(template_id: int, template: EmailTemplate, session: Session 
     return existing
 
 @router.delete("/{template_id}")
-def delete_template(template_id: int, session: Session = Depends(get_session)):
-    existing = session.get(EmailTemplate, template_id)
+def delete_template(template_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    existing = session.exec(select(EmailTemplate).where(EmailTemplate.id == template_id, EmailTemplate.user_id == current_user.id)).first()
     if not existing:
         raise HTTPException(status_code=404, detail="Template not found")
         
@@ -49,7 +51,7 @@ def delete_template(template_id: int, session: Session = Depends(get_session)):
     
     # If deleted was active, make another one active if exists
     if is_active:
-        first = session.exec(select(EmailTemplate)).first()
+        first = session.exec(select(EmailTemplate).where(EmailTemplate.user_id == current_user.id)).first()
         if first:
             first.is_active = True
             session.add(first)
@@ -58,12 +60,12 @@ def delete_template(template_id: int, session: Session = Depends(get_session)):
     return {"ok": True}
 
 @router.post("/{template_id}/active")
-def set_active_template(template_id: int, session: Session = Depends(get_session)):
-    target = session.get(EmailTemplate, template_id)
+def set_active_template(template_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    target = session.exec(select(EmailTemplate).where(EmailTemplate.id == template_id, EmailTemplate.user_id == current_user.id)).first()
     if not target:
         raise HTTPException(status_code=404, detail="Template not found")
         
-    all_temps = session.exec(select(EmailTemplate)).all()
+    all_temps = session.exec(select(EmailTemplate).where(EmailTemplate.user_id == current_user.id)).all()
     for t in all_temps:
         t.is_active = (t.id == template_id)
         session.add(t)

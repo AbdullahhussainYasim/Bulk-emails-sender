@@ -12,8 +12,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from .routes import accounts, clients, templates, dashboard, logs, control, inbox
+from .routes import accounts, clients, templates, dashboard, logs, control, inbox, auth
 
+app.include_router(auth.router)
 app.include_router(accounts.router)
 app.include_router(clients.router)
 app.include_router(templates.router)
