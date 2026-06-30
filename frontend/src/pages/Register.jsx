@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { register as registerApi } from '../services/api';
-import { Box, Button, TextField, Typography, Paper, Alert } from '@mui/material';
 
 const Register = () => {
     const [email, setEmail] = useState('');
@@ -21,46 +20,64 @@ const Register = () => {
     };
 
     return (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#f5f5f5">
-            <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 400 }}>
-                <Typography variant="h5" align="center" gutterBottom fontWeight="bold">
-                    Register Account
-                </Typography>
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                <form onSubmit={handleSubmit}>
-                    <TextField
-                        fullWidth
-                        label="Email"
-                        type="email"
-                        margin="normal"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Password"
-                        type="password"
-                        margin="normal"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <Button
-                        fullWidth
-                        type="submit"
-                        variant="contained"
-                        color="primary"
-                        sx={{ mt: 3, mb: 2, py: 1.5 }}
-                    >
-                        Register
-                    </Button>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
+                <div>
+                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                        Create an Account
+                    </h2>
+                </div>
+                
+                {error && (
+                    <div className="mt-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+                        {error}
+                    </div>
+                )}
+                
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    <div className="rounded-md shadow-sm space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                            <input
+                                type="email"
+                                required
+                                className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                placeholder="you@example.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Password</label>
+                            <input
+                                type="password"
+                                required
+                                className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <button
+                            type="submit"
+                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                            Register
+                        </button>
+                    </div>
+                    
+                    <div className="text-center text-sm">
+                        <span className="text-gray-600">Already have an account? </span>
+                        <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+                            Login here
+                        </Link>
+                    </div>
                 </form>
-                <Typography align="center">
-                    Already have an account? <Link to="/login">Login here</Link>
-                </Typography>
-            </Paper>
-        </Box>
+            </div>
+        </div>
     );
 };
 
